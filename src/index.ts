@@ -1,5 +1,6 @@
-import { type ExtensionContext, window } from 'coc.nvim';
+import { type ExtensionContext, window, Uri, workspace } from 'coc.nvim';
 import { existsSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import * as cmds from './commands';
 import { Ctx } from './ctx';
 import { downloadServer, getLatestRelease } from './downloader';
@@ -8,6 +9,21 @@ export async function activate(context: ExtensionContext): Promise<void> {
   const ctx = new Ctx(context);
   if (!ctx.config.enable) {
     return;
+  }
+
+  // filter standalone directory
+  // a workaround for issue:
+  // https://github.com/fannheyward/coc-rust-analyzer/issues/1300
+  function standalone(root) {
+	if (!root) return true;
+	if ((0, existsSync)((0, join)(Uri.parse(root).fsPath, "Cargo.toml"))) return false;
+	if ((0, existsSync)((0, join)(Uri.parse(root).fsPath, "rust-project.json"))) return false;
+	if ((0, existsSync)((0, join)(Uri.parse(root).fsPath, ".rust-project.json"))) return false;
+	return true;
+  }
+
+  if (workspace.workspaceFolders.some((folder) => standalone(folder.uri))) {
+      return;
   }
 
   const serverRoot = context.storagePath;
